@@ -58,42 +58,45 @@ function rcp_get_payments_db_name() {
 /*******************************************
 * global variables
 *******************************************/
-global $wpdb;
+function rcp_variable_init(){
+	global $wpdb;
 
-// the plugin base directory
-global $rcp_base_dir; // not used any more, but just in case someone else is
-$rcp_base_dir = dirname( __FILE__ );
+	// the plugin base directory
+	global $rcp_base_dir; // not used any more, but just in case someone else is
+	$rcp_base_dir = dirname( __FILE__ );
 
-// load the plugin options
-$rcp_options = get_option( 'rcp_settings' );
+	// load the plugin options
+	$rcp_options = apply_filters( 'rcp_options_global_variable', get_option( 'rcp_settings' ) );
 
-global $rcp_db_name;
-$rcp_db_name = rcp_get_levels_db_name();
+	global $rcp_db_name;
+	$rcp_db_name = rcp_get_levels_db_name();
 
-global $rcp_db_version;
-$rcp_db_version = '1.5';
+	global $rcp_db_version;
+	$rcp_db_version = '1.5';
 
-global $rcp_discounts_db_name;
-$rcp_discounts_db_name = rcp_get_discounts_db_name();
+	global $rcp_discounts_db_name;
+	$rcp_discounts_db_name = rcp_get_discounts_db_name();
 
-global $rcp_discounts_db_version;
-$rcp_discounts_db_version = '1.2';
+	global $rcp_discounts_db_version;
+	$rcp_discounts_db_version = '1.2';
 
-global $rcp_payments_db_name;
-$rcp_payments_db_name = rcp_get_payments_db_name();
+	global $rcp_payments_db_name;
+	$rcp_payments_db_name = rcp_get_payments_db_name();
 
-global $rcp_payments_db_version;
-$rcp_payments_db_version = '1.4';
+	global $rcp_payments_db_version;
+	$rcp_payments_db_version = '1.4';
 
-/* settings page globals */
-global $rcp_members_page;
-global $rcp_subscriptions_page;
-global $rcp_discounts_page;
-global $rcp_payments_page;
-global $rcp_settings_page;
-global $rcp_reports_page;
-global $rcp_export_page;
-global $rcp_help_page;
+	/* settings page globals */
+	global $rcp_members_page;
+	global $rcp_subscriptions_page;
+	global $rcp_discounts_page;
+	global $rcp_payments_page;
+	global $rcp_settings_page;
+	global $rcp_reports_page;
+	global $rcp_export_page;
+	global $rcp_help_page;
+}
+add_action( 'init', 'rcp_variable_init', 5 );
 
 /*******************************************
 * plugin text domain for translations
