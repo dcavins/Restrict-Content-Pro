@@ -70,7 +70,7 @@ class RCP_Payment_Gateway_PayPal_Express extends RCP_Payment_Gateway {
 			$amount = round( $this->amount + $this->signup_fee, 2 );
 		}
 
-		$args = array(
+		$args = apply_filters( 'paypal_express_request_args', array(
 			'USER'                           => $this->username,
 			'PWD'                            => $this->password,
 			'SIGNATURE'                      => $this->signature,
@@ -95,7 +95,7 @@ class RCP_Payment_Gateway_PayPal_Express extends RCP_Payment_Gateway {
 			'PAGESTYLE'                      => ! empty( $rcp_options['paypal_page_style'] ) ? trim( $rcp_options['paypal_page_style'] ) : '',
 			'SOLUTIONTYPE'                   => 'Sole',
 			'LANDINGPAGE'                    => 'Billing',
-		);
+		) );
 
 		if( $this->auto_renew && ! empty( $this->length ) ) {
 			$args['L_BILLINGAGREEMENTDESCRIPTION0'] = $this->subscription_name;
@@ -317,7 +317,7 @@ class RCP_Payment_Gateway_PayPal_Express extends RCP_Payment_Gateway {
 		} elseif ( ! empty( $_GET['token'] ) && ! empty( $_GET['PayerID'] ) ) {
 
 			add_filter( 'the_content', array( $this, 'confirmation_form' ), 9999999 );
-	
+
 		}
 
 	}
