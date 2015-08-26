@@ -10,7 +10,7 @@
 */
 
 class RCP_Payment_Gateway {
-	
+
 	public $supports = array();
 	public $email;
 	public $user_id;
@@ -27,6 +27,8 @@ class RCP_Payment_Gateway {
 	public $auto_renew;
 	public $return_url;
 	public $test_mode;
+	public $order_type;
+	public $upgrade_credit;
 
 	public function __construct( $subscription_data = array() ) {
 
@@ -47,8 +49,22 @@ class RCP_Payment_Gateway {
 			$this->subscription_key    = $subscription_data['key'];
 			$this->subscription_id     = $subscription_data['subscription_id'];
 			$this->subscription_name   = $subscription_data['subscription_name'];
-			$this->auto_renew          = $this->supports( 'recurring' ) ? $subscription_data['auto_renew'] : false;;
+			$this->auto_renew          = $this->supports( 'recurring' ) ? $subscription_data['auto_renew'] : false;
 			$this->return_url          = $subscription_data['return_url'];
+			$this->order_type          = $subscription_data['order_type'];
+			// We may be able to apply a pro-rated credit in two situations:
+			// 1. This is a recurring payment AND the payment gateway allows fees.
+			// 2. This is a one-time payment.
+			$this->upgrade_credit      = 0;
+			if ( isset( $subscription_data['upgrade_credit'] ) ) {
+				if ( $this->auto_renew ) {
+					if ( $this->supports( 'fees' ) ) {
+						$this->upgrade_credit = $subscription_data['upgrade_credit'];
+					}
+				} else {
+					$this->upgrade_credit = $subscription_data['upgrade_credit'];
+				}
+			}
 
 		}
 

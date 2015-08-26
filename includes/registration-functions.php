@@ -35,6 +35,8 @@ function rcp_process_registration() {
 		$base_price      = $price; // Used for discount calculations later
 		$expiration      = rcp_get_subscription_length( $subscription_id );
 		$subscription    = rcp_get_subscription_details( $subscription_id );
+		$upgrade_credit  = 0;
+		$order_type      = 'upgrade';
 
 		// get the selected payment method/gateway
 		if( ! isset( $_POST['rcp_gateway'] ) ) {
@@ -63,6 +65,17 @@ function rcp_process_registration() {
 			if( $price == 0 && $expiration->duration > 0 && rcp_has_used_trial( $user_data['id'] ) ) {
 				// this ensures that users only sign up for a free trial once
 				rcp_errors()->add( 'free_trial_used', __( 'You may only sign up for a free trial once', 'rcp' ), 'register' );
+			}
+
+			// Is the user trying to extend or upgrade his subscription?
+			if ( rcp_is_active( $user_data['id'] ) ) {
+				$current_subscription = rcp_get_subscription_id( $user_data['id'] );
+				$is_recurring = rcp_is_recurring( $user_data['id'] );
+				$renew_selected =  isset( $_POST['rcp_auto_renew'] ) ? true : false;
+				if ( $current_subscription == $subscription_id && $renew_selected == $is_recurring ) {
+					// rcp_errors()->add( 'nothing_changed', __( 'You are already subscribed at that level.', 'rcp' ), 'register' );
+					$order_type = 'extend';
+				}
 			}
 		}
 
@@ -98,7 +111,7 @@ function rcp_process_registration() {
 					}
 
 				}
-			
+
 			}
 
 		}
@@ -110,7 +123,7 @@ function rcp_process_registration() {
 
 		// Validate extra fields in gateways with the 2.1+ gateway API
 		if( ! has_action( 'rcp_gateway_' . $gateway ) && $price > 0 ) {
-		
+
 			$gateways    = new RCP_Payment_Gateways;
 			$gateway_var = $gateways->get_gateway( $gateway );
 			$gateway_obj = new $gateway_var['class'];
@@ -163,20 +176,12 @@ function rcp_process_registration() {
 			if( ! rcp_is_active( $user_data['id'] ) ) {
 
 				rcp_set_status( $user_data['id'], 'pending' );
-	
+
 			}
 
 			// setup a unique key for this subscription
 			$subscription_key = rcp_generate_subscription_key();
 			update_user_meta( $user_data['id'], 'rcp_subscription_key', $subscription_key );
-			update_user_meta( $user_data['id'], 'rcp_subscription_level', $subscription_id );
-
-			rcp_set_expiration_date( $user_data['id'], $member_expires );
-
-			// Set the user's role
-			$role = ! empty( $subscription->role ) ? $subscription->role : 'subscriber';
-			$user = new WP_User( $user_data['id'] );
-			$user->add_role( apply_filters( 'rcp_default_user_level', $role, $subscription_id ) );
 
 			do_action( 'rcp_form_processing', $_POST, $user_data['id'], $price );
 
@@ -199,6 +204,22 @@ function rcp_process_registration() {
 						wp_redirect( rcp_get_return_url( $user_data['id'] ) ); exit;
 					}
 
+				}
+
+				// Set some data if our payment gateway won't.
+				if( ! $gateway_obj->supports( 'webhooks' ) ) {
+					rcp_set_expiration_date( $user_data['id'], $member_expires );
+					update_user_meta( $user_data['id'], 'rcp_subscription_level', $subscription_id );
+
+					// Set the user's role
+					rcp_set_user_role_by_subscription_id( $user_data['id'], $subscription_id );
+				}
+
+				// Calculate available upgrade credit for the current user.
+				// We only figure this credit if the user is changing plans.
+				// If the user is buying an extension to an existing plan, don't do this.
+				if ( 'upgrade' == $order_type ) {
+					$upgrade_credit = rcp_calculate_upgrade_credit( $user_data['id'] );
 				}
 
 				// Determine auto renew behavior
@@ -241,7 +262,9 @@ function rcp_process_registration() {
 					'auto_renew' 		=> $auto_renew,
 					'return_url' 		=> $redirect,
 					'new_user' 			=> $user_data['need_new'],
-					'post_data' 		=> $_POST
+					'post_data' 		=> $_POST,
+					'order_type'        => $order_type,
+					'upgrade_credit'    => $upgrade_credit
 				);
 
 				// send all of the subscription data off for processing by the gateway
@@ -273,6 +296,12 @@ function rcp_process_registration() {
 
 				// date for trial / paid users, "none" for free users
 				rcp_set_expiration_date( $user_data['id'], $member_expires );
+
+				// Set the user's subscription level
+				update_user_meta( $user_id, 'rcp_subscription_level', $subscription_id );
+
+				// Set the user's role
+				rcp_set_user_role_by_subscription_id( $user_id, $subscription_id );
 
 				if( $user_data['need_new'] ) {
 

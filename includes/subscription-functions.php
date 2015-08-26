@@ -308,3 +308,43 @@ function rcp_get_renewal_reminder_period() {
 	$period = isset( $rcp_options['renewal_reminder_period'] ) ? $rcp_options['renewal_reminder_period'] : 'none';
 	return apply_filters( 'rcp_get_renewal_reminder_period', $period );
 }
+
+/**
+ * Calculate the available upgrade credit for a particular user.
+ *
+ * @param      int    $user_id ID of user to check.
+ *
+ * @return     string $credit  Value of credit.
+ */
+function rcp_calculate_upgrade_credit( $user_id = 0 ) {
+	$credit = 0;
+
+	if ( empty( $user_id ) ) {
+		$user_id = get_current_user_id();
+	}
+
+	$payments = rcp_get_user_payments( $user_id );
+	if ( ! is_null( $payments ) ) {
+		$time_now = time();
+
+		// Calculate pro-rationing based on payments and the date they would be in effect through.
+		foreach ( $payments as $k => $payment ) {
+			if ( $payment->status == 'complete' ) {
+				// @TODO: finding by name seems fragile, given that the name may change.
+				$subscription = rcp_get_subscription_details_by_name( $payment->subscription );
+				$duration = rcp_get_subscription_length( $subscription->id );
+				$payment_expires = rcp_calc_member_expiration_from_date( $duration, $payment->date );
+				$payment_exp_timestamp = strtotime( $payment_expires );
+				$time_left = $payment_exp_timestamp - $time_now;
+
+				// If this payment is within its expiration date, we count it toward effective credit.
+				if ( $time_left > 0 ) {
+					$paid_time = $payment_exp_timestamp - strtotime( $payment->date );
+					$payment_credit = number_format( $time_left / $paid_time * $payment->amount, 2 );
+					$credit = $credit + $payment_credit;
+				}
+			}
+		}
+	}
+	return $credit;
+}

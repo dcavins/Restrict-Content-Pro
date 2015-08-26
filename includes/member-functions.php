@@ -364,6 +364,32 @@ function rcp_calc_member_expiration( $expiration_object ) {
 	return apply_filters( 'rcp_calc_member_expiration', $member_expires, $expiration_object );
 }
 
+/**
+* Calculates the expiration date from a specified date.
+* @param object $expiration_object [ ]
+* @param string $date a parseable date string, best bet is YYYY-MM-DD HH:MM:SS
+*/
+function rcp_calc_member_expiration_from_date( $expiration_object, $date ) {
+
+	$member_expires = 'none';
+
+	if( $expiration_object->duration > 0 ) {
+
+		$time               = strtotime( $date );
+		$last_day           = cal_days_in_month( CAL_GREGORIAN, date( 'n', $time ), date( 'Y', $time ) );
+
+		$expiration_unit 	= $expiration_object->duration_unit;
+		$expiration_length 	= $expiration_object->duration;
+		$member_expires 	= date( 'Y-m-d H:i:s', strtotime( '+' . $expiration_length . ' ' . $expiration_unit . ' 23:59:59' ) );
+
+		if( date( 'j', $current_time ) == $last_day && 'day' != $expiration_unit ) {
+			$member_expires = date( 'Y-m-d H:i:s', strtotime( $member_expires . ' +2 days' ) );
+		}
+
+	}
+
+	return apply_filters( 'rcp_calc_member_expiration', $member_expires, $expiration_object );
+}
 
 /*
 * Gets the date of a user's expiration in a nice format
@@ -700,7 +726,7 @@ function rcp_is_stripe_subscriber( $user_id = 0 ) {
 
 		$ret = true;
 
-	} 
+	}
 
 	return (bool) apply_filters( 'rcp_is_stripe_subscriber', $ret, $user_id );
 }
@@ -866,7 +892,7 @@ function rcp_process_member_cancellation() {
 			$redirect = add_query_arg( 'profile', 'cancelled', $redirect );
 
 		}
-	
+
 		wp_redirect( $redirect ); exit;
 
 	}
@@ -1234,4 +1260,16 @@ function rcp_validate_username( $username = '' ) {
 	$sanitized = sanitize_user( $username, false );
 	$valid = ( $sanitized == $username );
 	return (bool) apply_filters( 'rcp_validate_username', $valid, $username );
+}
+
+function rcp_set_user_role_by_subscription_id( $user_id = 0, $subscription_id = 0 ) {
+	if ( empty( $user_id ) || empty( $subscription_id ) ) {
+		return;
+	}
+
+	$subscription = rcp_get_subscription_details( $id );
+
+	$role = ! empty( $subscription->role ) ? $subscription->role : 'subscriber';
+	$user = new WP_User( $user_id );
+	$user->add_role( apply_filters( 'rcp_default_user_level', $role, $subscription_id ) );
 }

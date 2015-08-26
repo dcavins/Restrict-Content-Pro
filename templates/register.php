@@ -61,13 +61,48 @@ rcp_show_error_messages( 'register' ); ?>
 	if( $levels ) : ?>
 		<p class="rcp_subscription_message"><?php echo apply_filters ( 'rcp_registration_choose_subscription', __( 'Choose your subscription level', 'rcp' ) ); ?></p>
 		<ul id="rcp_subscription_levels">
-			<?php foreach( $levels as $key => $level ) : ?>
+			<?php
+			// Which option should be pre-selected?
+			if ( isset( $_GET['level'] ) ) {
+				$selected = $_GET['level'];
+			} else {
+				$selected = current( $levels )->id;
+			}
+
+			// Which plan is the user currently enrolled in?
+			$current_subscription = false;
+			$is_recurring =  false;
+			if ( rcp_is_active( $user_id = get_current_user_id() ) ) {
+				$current_subscription = rcp_get_subscription_id( $user_id );
+				$is_recurring = rcp_is_recurring( $user_id );
+			}
+
+			foreach( $levels as $key => $level ) : ?>
 				<?php if( rcp_show_subscription_level( $level->id ) ) : ?>
 				<li id="rcp_subscription_level_<?php echo $level->id; ?>" class="rcp_subscription_level">
-					<input type="radio" class="required rcp_level" <?php if( $key == 0 || ( isset( $_GET['level'] ) && $_GET['level'] == $key ) ) { echo 'checked="checked"'; } ?> name="rcp_level" rel="<?php echo esc_attr( $level->price ); ?>" value="<?php echo esc_attr( absint( $level->id ) ); ?>" <?php if( $level->duration == 0 ) { echo 'data-duration="forever"'; } ?>/>&nbsp;
+					<input type="radio" class="required rcp_level" <?php if( $selected == $level->id ) { echo 'checked="checked"'; } ?> name="rcp_level" rel="<?php echo esc_attr( $level->price ); ?><" value="<?php echo esc_attr( absint( $level->id ) ); ?>" <?php
+						if( $level->duration == 0 ) {
+							echo 'data-duration="forever"';
+						}
+						// Don't allow the user to select the same plan if he already has a recurring subcription.
+						if ( $current_subscription == $level->id && $is_recurring ) {
+							echo 'disabled="disabled"';
+						}
+						?>/>&nbsp;
 					<span class="rcp_subscription_level_name"><?php echo rcp_get_subscription_name( $level->id ); ?></span><span class="rcp_separator">&nbsp;-&nbsp;</span><span class="rcp_price" rel="<?php echo esc_attr( $level->price ); ?>"><?php echo $level->price > 0 ? rcp_currency_filter( $level->price ) : __( 'free', 'rcp' ); ?><span class="rcp_separator">&nbsp;-&nbsp;</span></span>
 					<span class="rcp_level_duration"><?php echo $level->duration > 0 ? $level->duration . '&nbsp;' . rcp_filter_duration_unit( $level->duration_unit, $level->duration ) : __( 'unlimited', 'rcp' ); ?></span>
-					<div class="rcp_level_description"> <?php echo rcp_get_subscription_description( $level->id ); ?></div>
+					<?php
+						if ( $current_subscription == $level->id ) {
+							?><span class="rcp_currently_enrolled_notice"><span class="rcp_separator">&nbsp;-&nbsp;</span><?php
+							if ( $is_recurring ) {
+								_e( 'You are currently enrolled at this level, and your subscription is set to be automatically renewed.', 'rcp' );
+							} else {
+								_e( 'You are currently enrolled at this level. Your subscription is not automatically renewed.', 'rcp' );
+							}
+							?></span><?php
+						}
+					 ?>
+					<div class="rcp_level_description"><?php echo rcp_get_subscription_description( $level->id ); ?></div>
 				</li>
 				<?php endif; ?>
 			<?php endforeach; ?>

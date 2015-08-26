@@ -148,6 +148,8 @@ class RCP_Member extends WP_User {
 	*/
 	public function renew( $recurring = false, $status = 'active' ) {
 
+		$expiration_calc_basis = get_user_meta( $this->ID, 'rcp_expiration_date_calc_basis', true );
+
 		if( ! $this->get_subscription_id() ) {
 			return false;
 		}
@@ -156,7 +158,9 @@ class RCP_Member extends WP_User {
 		$expires        = $this->get_expiration_time();
 
 		// Determine what date to use as the start for the new expiration calculation
-		if( $expires > current_time( 'timestamp' ) && rcp_is_active( $this->ID ) ) {
+		// Upgrades should be timestamped from today;
+		// renewals should be timestamped from the end of the current term.
+		if( $expires > current_time( 'timestamp' ) && rcp_is_active( $this->ID ) && $expiration_calc_basis == 'extend' ) {
 
 			$base_date  = $expires;
 
@@ -192,6 +196,7 @@ class RCP_Member extends WP_User {
 		$this->set_recurring( $recurring );
 
 		delete_user_meta( $this->ID, '_rcp_expired_email_sent' );
+		delete_user_meta( $this->ID, 'rcp_expiration_date_calc_basis' );
 
 		do_action( 'rcp_member_post_renew', $this->ID, $expiration, $this );
 
